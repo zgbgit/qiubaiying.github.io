@@ -12,16 +12,16 @@ github_repo: "https://github.com/zgbgit/zgbgit.github.io.git" # you code reposit
 # Sidebar settings
 sidebar: true                           # whether or not using Sidebar.
 sidebar-about-description: "Goals determine what you going to be!"
-sidebar-avatar: img/avatar-by.jpg      # use absolute URL, seeing it's used in both `/` and `/about/`
+sidebar-avatar: img/avatar-m.jpg      # use absolute URL, seeing it's used in both `/` and `/about/`
 
 
 
 # SNS settings
 RSS: false
-# weibo_username:     qiubaiying
-#zhihu_username:     qiubaiying
+weibo_username:     
+zhihu_username:     
 github_username:    zgbgit
-#facebook_username:  baiying.qiu.7
+facebook_username:  
 #jianshu_username:   e71990ada2fd
 #twitter_username:   qiubaiying
 
@@ -58,9 +58,9 @@ kramdown:
 #disqus_username: _your_disqus_short_name_
 
 # Duoshuo settings
-duoshuo_username: qiubaiying
+#duoshuo_username: qiubaiying
 # Share component is depend on Comment so we can NOT use share only.
-duoshuo_share: true                     # set to false if you want to use Comment without Sharing
+#duoshuo_share: true                     # set to false if you want to use Comment without Sharing
 
 
 
