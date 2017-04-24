@@ -333,7 +333,7 @@ B = Y + 1.772 * (U-128)
 ### UYVY转RGB32代码
 根据上面推导的公式，代码如下
 
-<code class="hljs livecodeserver">{% highlight ruby %}
+<code class="html">{% highlight ruby %}
 unsigned char clip(int data)
 {
 	if (data > 255)
