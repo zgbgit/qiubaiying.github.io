@@ -116,9 +116,9 @@ YUV格式通常有两大类：打包（packed）格式和平面（planar）格�
 ### Packed YUV Formats
 
 | Label | FOURCC in Hex| Bits per pixel | Description｜
-|----|----|-----|-----|
-|AYUV|0x56555941|32|Combined YUV and alpha|
-|CLJR|0x524A4C43|8|Cirrus Logic format with 4 pixels packed into a u_int32. A form of YUV 4:1:1 wiht less than 8 bits per Y, U and V sample.|
+|:----:|:----:|:-----:|:-----:|
+|AYUV|0x56555941      |32      |Combined YUV and alpha|
+|CLJR|0x524A4C43      |8       |Cirrus Logic format with 4 pixels packed into a u_int32. A form of YUV 4:1:1 wiht less than 8 bits per Y, U and V sample.|
 |CYUV|0x76757963|16|Essentially a copy of UYVY except that the sense of the height is reversed - the image is upside down with respect to the UYVY version.|
 |GREY(Y800)|0x59455247|8|Apparently a duplicate of Y800 (and also, presumably, "Y8 ")|
 |HDYC(UYVY)|0x43594448|16|YUV 4:2:2 (Y sample at every pixel, U and V sampled at every second pixel horizontally on each line). A macropixel contains 2 pixels in 1 u_int32. This is a suplicate of UYVY except that the color components use the BT709 color space (as used in HD video).|
@@ -152,7 +152,7 @@ YUV格式通常有两大类：打包（packed）格式和平面（planar）格�
 ### Planar YUV Formats
 
 | Label | FOURCC in Hex| Bits per pixel | Description |
-|----|----|-----|-----|
+|:-------:|:--------------:|:-------------------:|:-----------------:|
 |CLPL|0x4C504C43|12|Format similar to YV12 but including a level of indirection.|
 |CXY1|0x31595843|12|Planar YUV 4:1:1 format registered by Conexant.|
 |CXY2|0x32595842|16|Planar YUV 4:2:2 format registered by Conexant.|
@@ -243,7 +243,7 @@ BYTE rgbReserved; 	// 保留字节（用作Alpha通道或忽略）
 ### RAW
 RAW格式常用的有RAW8和RAW10。即每个像素用8bit或者10bit表示。
 
-![](assets/camera_format/RAW10.png)
+![RAW10](/assets/camera_format/RAW10.png)
 
 可以看出，对于RAW10，需要把10bit的数据转换为8bit的数据，需要进行时钟域的转换，RAW10字节打包后的时钟频率 = 打包前的1.25倍。
 
@@ -295,25 +295,25 @@ YUV的标准不只有一种，所以分别会对应不同的转换公式。常�
 
 ITU BT.601 Full Range转换矩阵
 
-![](assets/camera_format/1.png)
+![](/assets/camera_format/1.png)
 
 ITU BT.601 Full Range转换矩阵
 
-![](assets/camera_format/2.png)
+![](/assets/camera_format/2.png)
 
 ITU BT.709默认转换矩阵
 
-![](assets/camera_format/3.png)
+![](/assets/camera_format/3.png)
 
 这几个转换矩阵的得来可以去看看标准的文档，这里截取ITU BT.601文档中的部分说明。
 
-![](assets/camera_format/4.png)
+![](/assets/camera_format/4.png)
 
-![](assets/camera_format/5.png)
+![](/assets/camera_format/5.png)
 
-![](assets/camera_format/6.png)
+![](/assets/camera_format/6.png)
 
-![](assets/camera_format/7.png)
+![](/assets/camera_format/7.png)
 
 简单解释一下，上面三个公式是真正每个分量（Y/Cb/Cr)与颜色空间RGB的转换关系，下面三个公式表示实际存取时Y、Cr、Cb与YUV颜色空间的转换关系。这里需要说明的是，公式对YUV的值进行了限定，去除了对人眼影响不大的YUV分量（即上面所说的TV Range），所以对于Full Range，也就是Y、Cr、Cb的取值范围都是[0...255]的时候，下面的三个公式需要进行修改，即
 ```
