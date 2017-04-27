@@ -4,7 +4,7 @@ title:      V4L2 controls
 subtitle:   
 date:       2017-04-27
 author:     ZGB
-header-img: assets/camera_crtl/timg.jpg
+header-img: assets/camera_crtl/title.jpg
 catalog: true
 tags:
     - Camera
