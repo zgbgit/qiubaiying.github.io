@@ -98,4 +98,172 @@ int v4l2_s_ctrl(struct v4l2_fh *fh, struct v4l2_ctrl_handler *hdl,
 	return ret;
 }
 ```
-这里首先通过v4l2_ctrl_find函数，利用ID找到对应的ctrl。接着执行set_ctrl_lock函数设置具
+这里首先通过v4l2_ctrl_find函数，利用ID找到对应的ctrl。接着执行set_ctrl_lock函数设置具体的值。
+
+```c
+static int set_ctrl_lock(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl,
+			 struct v4l2_ext_control *c)
+{
+	int ret;
+
+	v4l2_ctrl_lock(ctrl);
+	user_to_new(c, ctrl);
+	ret = set_ctrl(fh, ctrl, 0);
+	if (!ret)
+		cur_to_user(c, ctrl);
+	v4l2_ctrl_unlock(ctrl);
+	return ret;
+}
+```
+先对ctrl上锁，接着利用user_to_new读取应用层传来的value值。接着利用set_ctrl对value值进行更新，然后对ctrl进行解锁。
+
+```c
+static int set_ctrl(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl, u32 ch_flags)
+{
+	struct v4l2_ctrl *master = ctrl->cluster[0];
+	int ret;
+	int i;
+
+	/* Reset the 'is_new' flags of the cluster */
+	for (i = 0; i < master->ncontrols; i++)
+		if (master->cluster[i])
+			master->cluster[i]->is_new = 0;
+
+	ret = validate_new(ctrl, ctrl->p_new);
+	if (ret)
+		return ret;
+
+	/* For autoclusters with volatiles that are switched from auto to
+	   manual mode we have to update the current volatile values since
+	   those will become the initial manual values after such a switch. */
+	if (master->is_auto && master->has_volatiles && ctrl == master &&
+	    !is_cur_manual(master) && ctrl->val == master->manual_mode_value)
+		update_from_auto_cluster(master);
+
+	ctrl->is_new = 1;
+	return try_or_set_cluster(fh, master, true, ch_flags);
+}
+```
+这里做了一堆的判断，如果value值不是新的，就不更新value的值。最后调用try_or_set_cluster调用底层函数设置寄存器。
+
+```c
+static int try_or_set_cluster(struct v4l2_fh *fh, struct v4l2_ctrl *master,
+			      bool set, u32 ch_flags)
+{
+	bool update_flag;
+	int ret;
+	int i;
+
+	/* Go through the cluster and either validate the new value or
+	   (if no new value was set), copy the current value to the new
+	   value, ensuring a consistent view for the control ops when
+	   called. */
+	for (i = 0; i < master->ncontrols; i++) {
+		struct v4l2_ctrl *ctrl = master->cluster[i];
+
+		if (ctrl == NULL)
+			continue;
+
+		if (!ctrl->is_new) {
+			cur_to_new(ctrl);
+			continue;
+		}
+		/* Check again: it may have changed since the
+		   previous check in try_or_set_ext_ctrls(). */
+		if (set && (ctrl->flags & V4L2_CTRL_FLAG_GRABBED))
+			return -EBUSY;
+	}
+
+	ret = call_op(master, try_ctrl);
+
+	/* Don't set if there is no change */
+	if (ret || !set || !cluster_changed(master))
+		return ret;
+	ret = call_op(master, s_ctrl);
+	if (ret)
+		return ret;
+
+	/* If OK, then make the new values permanent. */
+	update_flag = is_cur_manual(master) != is_new_manual(master);
+	for (i = 0; i < master->ncontrols; i++)
+		new_to_cur(fh, master->cluster[i], ch_flags |
+			((update_flag && i > 0) ? V4L2_EVENT_CTRL_CH_FLAGS : 0));
+	return 0;
+}
+
+```
+通过call_op调用了try_ctrl和s_ctrl方法来设置寄存器。
+
+### ov5640 driver
+通过上面的描述，在驱动函数中，我们最重要的就是要注册ctrl的s_ctrl方法。下面给出具体的步骤。
+
+（1）添加handler到驱动的设备结构体中
+```c
+struct ov5640 {
+	......
+	/* the ctrl_handler */
+	struct v4l2_ctrl_handler ctrl_handler;
+};
+```
+
+（2）在probe函数中初始化handler
+```c
+v4l2_ctrl_handler_init(&ov5640->ctrl_handler, 2);
+```
+第二个参数是提示该函数有多少个该handler的controls。它会根据这个信息分配一个hastable。它仅仅是一个提示。
+
+（3）添加crtl
+```c
+v4l2_ctrl_new_std(&ov5640->ctrl_handler, &ov5640_ctrl_ops,
+			V4L2_CID_BRIGHTNESS, 0, 255, 1, 0);
+ov5640->sd.ctrl_handler = &ov5640->ctrl_handler;
+```
+
+（4）ops函数
+```c
+static int ov5640_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct v4l2_subdev *sd =
+		&container_of(ctrl->handler, struct ov5640, ctrl_handler)->sd;
+	struct i2c_client  *client = v4l2_get_subdevdata(sd);
+
+	switch (ctrl->id) {
+	case V4L2_CID_BRIGHTNESS:
+		ov5640_write(client, 0x3a1e, ctrl->val - 2);
+		return ov5640_write(client, 0x3a1b, ctrl->val);
+	case V4L2_CID_CONTRAST:
+		return ov5640_write(client, 0x5587, ctrl->val);
+		default:
+		break;
+	}
+
+	return -EINVAL;
+}
+
+static const struct v4l2_ctrl_ops ov5640_ctrl_ops = {
+	.s_ctrl = ov5640_s_ctrl,
+};
+
+```
+
+### 应用层函数
+应用层对应的调用函数。
+```c
+struct v4l2_control control;
+	
+if ((fd_v4l = open_video_device()) < 0)
+{
+	printf("Unable to open v4l2 capture device.\n");
+	return -1;
+}
+
+memset (&control, 0, sizeof (control));
+control.id = V4L2_CID_BRIGHTNESS;
+control.value = v4l2_brightness_val;
+if( ioctl(fd_v4l, VIDIOC_S_CTRL , &control) < 0)
+{
+	printf("VIDIOC_S_CTRL failed\n");
+	return -1;
+}
+```
+
