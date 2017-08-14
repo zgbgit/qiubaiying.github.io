@@ -558,6 +558,64 @@ else
 ALL-y	+= u-boot.img
 endif
 ```
+是谁包含了`arch\arm\cpu\armv7\am33xx\config.mk`文件呢？在SPL阶段，scripts/Makefile.spl中
+```
+include $(srctree)/config.mk
+include $(srctree)/arch/$(ARCH)/Makefile
+```
+在UBOOT阶段，顶层Makefile中
+```
+ifneq ($(wildcard $(KCONFIG_CONFIG)),)
+ifneq ($(wildcard include/config/auto.conf),)
+autoconf_is_old := $(shell find . -path ./$(KCONFIG_CONFIG) -newer \
+						include/config/auto.conf)
+ifeq ($(autoconf_is_old),)
+include config.mk
+include arch/$(ARCH)/Makefile
+endif
+endif
+endif
+```
+这里都inlude了顶层目录的config.mk。
+```
+# Some architecture config.mk files need to know what CPUDIR is set to,
+# so calculate CPUDIR before including ARCH/SOC/CPU config.mk files.
+# Check if arch/$ARCH/cpu/$CPU exists, otherwise assume arch/$ARCH/cpu contains
+# CPU-specific code.
+CPUDIR=arch/$(ARCH)/cpu$(if $(CPU),/$(CPU),)
+
+sinclude $(srctree)/arch/$(ARCH)/config.mk	# include architecture dependend rules
+sinclude $(srctree)/$(CPUDIR)/config.mk		# include  CPU	specific rules
+
+ifdef	SOC
+sinclude $(srctree)/$(CPUDIR)/$(SOC)/config.mk	# include  SoC	specific rules
+endif
+ifneq ($(BOARD),)
+ifdef	VENDOR
+BOARDDIR = $(VENDOR)/$(BOARD)
+else
+BOARDDIR = $(BOARD)
+endif
+endif
+ifdef	BOARD
+sinclude $(srctree)/board/$(BOARDDIR)/config.mk	# include board specific rules
+endif
+
+ifdef FTRACE
+PLATFORM_CPPFLAGS += -finstrument-functions -DFTRACE
+endif
+
+# Allow use of stdint.h if available
+ifneq ($(USE_STDINT),)
+PLATFORM_CPPFLAGS += -DCONFIG_USE_STDINT
+endif
+```
+这个文件在下一篇文章中会用到，我们这里关注sinclude $(srctree)/$(CPUDIR)/$(SOC)/config.mk，这里的$(CPUDIR)为arch/arm/cpu/armv7,$(SOC)为am33xx，所以这句话就是
+```
+sinclude arch/arm/cpu/armv7/am33xx/config.mk
+```
+在MLO阶段，就会编译出MLO，在uboot阶段，就会编译出u-boot.img。
+
 
 ## 附录一
 ### build构建规则
